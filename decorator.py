@@ -2,8 +2,7 @@ import cProfile
 import datetime
 
 
-def profile_performance(write_profile=False,
-                        profile_name="{funcname}-{timestamp}"):
+def profile(write_profile=False, profile_name="{funcname}-{timestamp}"):
     def profiled_func_decorator(func):
         def profiled_func(*args, **kwargs):
             profile = cProfile.Profile()
