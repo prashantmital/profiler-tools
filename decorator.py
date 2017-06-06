@@ -1,10 +1,14 @@
+from __future__ import division, print_function
+
 from cProfile import Profile
 from datetime import datetime
 from functools import wraps
+from os import getcwd, getpid, path
 
 
-def profile(write_profile=False, profile_name="{funcname}-{timestamp}",
-            catch_exception=Exception):
+def profile_function(write_profile=True, profile_dir="{cwd}",
+                     profile_name="{funcname}-{pid}-{timestamp}",
+                     catch_exception=Exception):
     """
     Decorator that profiles the decorated function.
 
@@ -13,6 +17,12 @@ def profile(write_profile=False, profile_name="{funcname}-{timestamp}",
     write_profile : bool
         Flag to instruct the decorator whether to write the profile to disk
         or not. If False, the profile is printed to STDOUT.
+    profile_dir : str
+        Python format string specifying the directory in which the profile
+        file is created. The only supported special placeholder variable is
+        `cwd` which expands to the current working directory. If the directory
+        does not already exist, the profile will be printed to STDOUT and
+        nothing will be written to disk.
     profile_name : str
         Python format string specifying the name of the file to which the
         profile is written. Supported special placeholder variables are
@@ -28,7 +38,7 @@ def profile(write_profile=False, profile_name="{funcname}-{timestamp}",
         `catch_exception` is raised, execution will terminate prematurely
         and no profile will be generated.
     """
-    def profiled_func_decorator(func):
+    def profiling_decorator(func):
         @wraps(func)
         def profiled_func(*args, **kwargs):
             profile = Profile()
@@ -40,16 +50,17 @@ def profile(write_profile=False, profile_name="{funcname}-{timestamp}",
             except catch_exception as exc:
                 result = exc
             finally:
-                if write_profile:
-                    profile.dump_stats("{}.prof".format(profile_name.format(
-                        funcname=func.__name__,
-                        timestamp=datetime.now().strftime("%Y%m%d_%H%M%S%f")
-                    )))
+                write_dir = profile_dir.format(cwd=getcwd())
+                if write_profile and path.isdir(write_dir):
+                    write_name = "{}.prof".format(
+                        profile_name.format(
+                            funcname=func.__name__, pid=getpid(),
+                            timestamp=datetime.now().strftime("%Y%m%d_%H%M%S")
+                        ))
+                    profile_path = path.join(write_dir, write_name)
+                    profile.dump_stats(profile_path)
                 else:
                     profile.print_stats()
-                if issubclass(result, catch_exception):
-                    raise result
-                else:
-                    return result
+            return result
         return profiled_func
-    return profiled_func_decorator
+    return profiling_decorator
